@@ -5,9 +5,11 @@ import PizzaBlock from '../../components/PizzaBlock';
 import Skeleton from '../../components/PizzaBlock/Skeleton';
 import Pagination from '../../components/Pagination';
 import axios from 'axios';
-import { useState, useEffect } from 'react';
+import { SearchContext } from '../../App';
+import { useState, useEffect, useContext } from 'react';
 
-export default function Home({ searchValue }) {
+export default function Home() {
+  const { searchValue } = useContext(SearchContext);
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [categoryId, setCategoryId] = useState(0);
