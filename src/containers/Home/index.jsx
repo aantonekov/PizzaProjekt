@@ -1,16 +1,19 @@
 import React from 'react';
 import Categories from '../../components/Categories';
-import Sorts from '../../components/Sorts';
+import Sorts, { list } from '../../components/Sorts';
 import PizzaBlock from '../../components/PizzaBlock';
 import Skeleton from '../../components/PizzaBlock/Skeleton';
 import Pagination from '../../components/Pagination';
 import axios from 'axios';
-import { setCategoryId, setCurrentPage } from '../../redux/slices/filterSlice';
+import qs from 'qs';
+import { useNavigate } from 'react-router-dom';
+import { setCategoryId, setCurrentPage, setFilters } from '../../redux/slices/filterSlice';
 import { SearchContext } from '../../App';
 import { useState, useEffect, useContext } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 export default function Home() {
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const { categoryId, sort, currentPage } = useSelector((state) => state.filter);
 
@@ -43,6 +46,19 @@ export default function Home() {
   //   }
   //   return false;
   // })
+  useEffect(() => {
+    if (window.location.search) {
+      const params = qs.parse(window.location.search.substring(1));
+
+      const sort = list.find((obj) => obj.sortProperty === params.sortProperty);
+      dispatch(
+        setFilters({
+          ...params,
+          sort,
+        }),
+      );
+    }
+  }, []);
 
   useEffect(() => {
     setIsLoading(true);
@@ -51,6 +67,20 @@ export default function Home() {
       setIsLoading(false);
     });
     window.scrollTo(0, 0);
+  }, [categoryId, sort.sortProperty, searchValue, currentPage]);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [categoryId, sort.sortProperty, searchValue, currentPage]);
+
+  useEffect(() => {
+    const queryString = qs.stringify({
+      sortProperty: sort.sortProperty,
+      categoryId,
+      currentPage,
+    });
+
+    navigate(`?${queryString}`);
   }, [categoryId, sort.sortProperty, searchValue, currentPage]);
 
   return (
