@@ -2,7 +2,7 @@ import React from 'react';
 import styles from './styles.module.scss';
 
 import ReactPaginate from 'react-paginate';
-import { useEffect, useState } from 'react';
+// import { useEffect, useState } from 'react';
 
 export default function Pagination({ currentPage, onChangePage }) {
   return (

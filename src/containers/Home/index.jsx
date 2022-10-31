@@ -1,25 +1,28 @@
 import React from 'react';
 import Categories from '../../components/Categories';
-import Sorts, { list } from '../../components/Sorts';
+import Sorts, { sortList } from '../../components/Sorts';
 import PizzaBlock from '../../components/PizzaBlock';
 import Skeleton from '../../components/PizzaBlock/Skeleton';
 import Pagination from '../../components/Pagination';
-import axios from 'axios';
+
 import qs from 'qs';
 import { useNavigate } from 'react-router-dom';
 import { setCategoryId, setCurrentPage, setFilters } from '../../redux/slices/filterSlice';
+import { fetchPizza } from '../../redux/slices/pizzaSlice';
 import { SearchContext } from '../../App';
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 export default function Home() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const isSearch = useRef(false);
+  const isMounted = useRef(false);
+
+  const { items, status } = useSelector((state) => state.pizza);
   const { categoryId, sort, currentPage } = useSelector((state) => state.filter);
 
   const { searchValue } = useContext(SearchContext);
-  const [items, setItems] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
 
   const onClickCategories = (id) => {
     dispatch(setCategoryId(id));
@@ -29,59 +32,70 @@ export default function Home() {
     dispatch(setCurrentPage(number));
   };
 
-  const sortBy = sort.sortProperty.replace('-', '');
-  const order = sort.sortProperty.includes('-') ? 'ask' : 'desc';
-  const category = categoryId > 0 ? `category=${categoryId}` : '';
-  const search = searchValue ? `&search=${searchValue}` : '';
+  const resPizzas = async () => {
+    const sortBy = sort.sortProperty.replace('-', '');
+    const order = sort.sortProperty.includes('-') ? 'ask' : 'desc';
+    const category = categoryId > 0 ? `category=${categoryId}` : '';
+    const search = searchValue ? `&search=${searchValue}` : '';
 
-  const url = `https://633747455327df4c43d27a80.mockapi.io/pizzaItems?page=${currentPage}&limit=4&${category}&sortBy=${sortBy}&order=${order}${search}`;
+    dispatch(
+      fetchPizza({
+        sortBy,
+        order,
+        category,
+        search,
+        currentPage,
+      }),
+    );
 
-  const pizzas = items.map((obj) => <PizzaBlock key={obj.id} {...obj} />);
-  const sceletons = [new Array(6)].map((_, index) => <Skeleton key={index} />);
+    window.scrollTo(0, 0);
+  };
 
-  //  Фильтрация для статического поиска с небольшим обемом данных
-  // .filter((obj) => {
-  //   if (obj.title.toLowerCase().includes(searchValue.toLowerCase())) {
-  //     return true;
-  //   }
-  //   return false;
-  // })
+  useEffect(() => {
+    if (isMounted.current) {
+      const queryString = qs.stringify({
+        sortProperty: sort.sortProperty,
+        categoryId,
+        currentPage,
+      });
+      navigate(`?${queryString}`);
+    }
+    isMounted.current = true;
+  }, [categoryId, sort.sortProperty, searchValue, currentPage]);
+
   useEffect(() => {
     if (window.location.search) {
       const params = qs.parse(window.location.search.substring(1));
 
-      const sort = list.find((obj) => obj.sortProperty === params.sortProperty);
+      const sort = sortList.find((obj) => obj.sortProperty === params.sortProperty);
       dispatch(
         setFilters({
           ...params,
           sort,
         }),
       );
+      isSearch.current = true;
     }
   }, []);
+  // useEffect(() => {
+  //   if (window.location.search) {
+  //     resPizzas();
+  //   }
+  // }, [categoryId, sort.sortProperty, searchValue, currentPage]);
 
-  useEffect(() => {
-    setIsLoading(true);
-    axios.get(url).then((data) => {
-      setItems(data.data);
-      setIsLoading(false);
-    });
-    window.scrollTo(0, 0);
-  }, [categoryId, sort.sortProperty, searchValue, currentPage]);
+  //проверка на запрос
 
   useEffect(() => {
     window.scrollTo(0, 0);
+
+    // if (!isSearch.current) {
+    resPizzas();
+    // }
+    isSearch.current = false;
   }, [categoryId, sort.sortProperty, searchValue, currentPage]);
 
-  useEffect(() => {
-    const queryString = qs.stringify({
-      sortProperty: sort.sortProperty,
-      categoryId,
-      currentPage,
-    });
-
-    navigate(`?${queryString}`);
-  }, [categoryId, sort.sortProperty, searchValue, currentPage]);
+  const pizzas = items.map((obj) => <PizzaBlock key={obj.id} {...obj} />);
+  const sceletons = [new Array(6)].map((_, index) => <Skeleton key={index} />);
 
   return (
     <div className="container">
@@ -90,8 +104,24 @@ export default function Home() {
         <Sorts />
       </div>
       <h2 className="content__title">Всі піци:</h2>
-      <div className="content__items">{isLoading ? sceletons : pizzas}</div>
+      {status === 'error' ? (
+        <div className="content__error-info">
+          <h2>Виникла помилка 😕</h2>
+          <p>Нажаль невдалося отримати піци.Спробуйте пізніше.</p>
+        </div>
+      ) : (
+        <div className="content__items">{status === 'loading' ? sceletons : pizzas}</div>
+      )}
+
       <Pagination currentPage={currentPage} onChangePage={onChangePage} />
     </div>
   );
 }
+
+//  Фильтрация для статического поиска с небольшим обемом данных
+// .filter((obj) => {
+//   if (obj.title.toLowerCase().includes(searchValue.toLowerCase())) {
+//     return true;
+//   }
+//   return false;
+// })
